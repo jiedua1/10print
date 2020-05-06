@@ -6,13 +6,13 @@
 const w = Math.min(50, process.stdout.columns)
 // Stores frequency of note and the row that the note is on, starting from the top
 // We just have notes from the pentatonic scale for a more aesthetically pleasing sound
-// C, D, E, G, A
-const notes_table = {'C': [3, 523],
-                    'D': [2, 587],
-                    'E': [1, 659],
-                    'G': [6, 392],
-                    'A': [5, 440],
-                    'E3' : [8, 330]}
+// C, D, E, G, A. I tried to use ⓒ, ⓓ, ⓔ, ⓖ, ⓐ, ⓔ but they didn't render well
+const notes_table = {'C': [3, 523, '0'],
+                    'D': [2, 587, 'o'], 
+                    'E': [1, 659, 'o'],
+                    'G': [6, 392, 'o'],
+                    'A': [5, 440, 'o'],
+                    'E3' : [8, 330, 'o']}
 
 // Taken from https://flaviocopes.com/javascript-sleep/
 const sleep = (milliseconds) => {
@@ -24,7 +24,11 @@ const reset_color = '\x1b[0m'
 // Number of lines on a musical staff. Default: 9
 const num_lines = 9
 
+// notes with form ['C', [3, 523, 'o']] which are mapped to indices
+// I should probably use objects now but I'm lazy lol 
 var notes_list = Object.entries(notes_table)
+
+// Indexed by column number which corresponds to time
 var notes = {}
 
 // Throwback to 10print :)
@@ -34,8 +38,8 @@ const colors = ['\x1b[90m', '\x1b[91m', '\x1b[92m', '\x1b[93m',
 // stores a list of /, \ characters to make result more aesthetically pleasing!
 var old_chars = []
 
-var note_prop_min = 0.05
-var note_prop_max = 0.25
+var note_prop_min = 0.2
+var note_prop_max = 0.4
 
 // Stores current index of our musical tracker, goes up to w
 var cur_pos = 0;
@@ -75,9 +79,21 @@ function generateNotes() {
   }
   notes = {}
   for (var c = 0; c < w; c++) {
-    if (Math.random() > note_prop) {
+    if (Math.random() < note_prop) {
       notes[c] = notes_list[Math.floor(Math.random() * notes_list.length)];
     } 
+  }
+}
+
+// Checks when given a row and a note's info [3, 523, 'o'] whether 
+// a stem should be drawn on the row
+function valid_stem(row, note) {
+  note_row = note[1][0]
+  direction = Math.sign(note_row - 4.1)
+  if (direction < 0) { // note pointing downwards
+    return row == (note_row + 1) || row == (note_row + 2)
+  } else {
+    return row == (note_row - 1) || row == (note_row - 2)
   }
 }
 
@@ -100,8 +116,11 @@ function draw () {
       }
       if (c in notes && row == notes[c][1][0]) {
         output[row].push('\x1b[91m')
-        output[row].push('o')
+        output[row].push(notes[c][1][2])
         if (c == cur_pos) delete notes[c]
+      } else if (c in notes && valid_stem(row, notes[c])) { // draw stem of note
+        output[row].push('\x1b[94m')
+        output[row].push('|')
       } else if (c < cur_pos) {
         output[row].push(old_chars[row][c])
       } else if (row % 2 == 0) {
@@ -118,6 +137,8 @@ function draw () {
   }
   console.log(reset_color)
   console.log('\n')
+
+  // Add additional column of semirandom / and \ characters
   let fixed_color = null
   if (Math.random() < 0.75) {
     fixed_color = colors[Math.floor(Math.random() * colors.length)]
